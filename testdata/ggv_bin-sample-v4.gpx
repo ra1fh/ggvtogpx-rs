@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.0" creator="ggvtogpx" xmlns="http://www.topografix.com/GPX/1/0">
+  <time>1970-01-01T00:00:00+00:00</time>
+  <bounds minlat="48.061223531" minlon="9.934377854" maxlat="50.119205792" maxlon="12.844931629"/>
+  <wpt lat="49.936238687" lon="9.934377854">
+    <name>Unterfranken</name>
+    <cmt>Unterfranken</cmt>
+    <desc>Unterfranken</desc>
+  </wpt>
+  <wpt lat="50.119205792" lon="11.553343525">
+    <name>Oberfranken</name>
+    <cmt>Oberfranken</cmt>
+    <desc>Oberfranken</desc>
+  </wpt>
+  <wpt lat="49.474069252" lon="10.727885393">
+    <name>Mittelfranken</name>
+    <cmt>Mittelfranken</cmt>
+    <desc>Mittelfranken</desc>
+  </wpt>
+  <wpt lat="49.239594973" lon="12.195871209">
+    <name>Oberpfalz</name>
+    <cmt>Oberpfalz</cmt>
+    <desc>Oberpfalz</desc>
+  </wpt>
+  <wpt lat="48.312821111" lon="10.477401120">
+    <name>Schwaben</name>
+    <cmt>Schwaben</cmt>
+    <desc>Schwaben</desc>
+  </wpt>
+  <wpt lat="48.061223531" lon="11.863407277">
+    <name>Oberbayern</name>
+    <cmt>Oberbayern</cmt>
+    <desc>Oberbayern</desc>
+  </wpt>
+  <wpt lat="48.688614092" lon="12.844931629">
+    <name>Niederbayern</name>
+    <cmt>Niederbayern</cmt>
+    <desc>Niederbayern</desc>
+  </wpt>
+</gpx>

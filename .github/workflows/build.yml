@@ -1,0 +1,28 @@
+name: "Build and Test"
+
+on: [push]
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [ ubuntu-24.04-arm, ubuntu-24.04 ]
+
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Install Qt6
+        run: |
+          sudo apt-get update
+          sudo apt-get -y install cargo rustc
+
+      - name: CMake
+        run: cmake .
+
+      - name: Build
+        run: make
+
+      - name: Test
+        run: make test
