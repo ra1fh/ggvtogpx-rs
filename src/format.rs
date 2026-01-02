@@ -23,6 +23,9 @@ use anyhow::Result;
 pub trait Format {
     fn probe(&self, buf: &[u8]) -> bool;
     fn read(&self, buf: &[u8]) -> Result<Geodata>;
+    fn write(&self, geodata: &Geodata) -> Result<String>;
     fn name<'a>(&self) -> &'a str;
+    fn can_read(&self) -> bool;
+    fn can_write(&self) -> bool;
     fn set_debug(&mut self, debug: u8);
 }

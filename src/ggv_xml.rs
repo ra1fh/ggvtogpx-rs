@@ -279,8 +279,17 @@ impl Format for GgvXmlFormat {
         };
         Ok(geodata)
     }
+    fn write(&self, _geodata: &Geodata) -> Result<String> {
+        todo!("ggv_xml write support");
+    }
     fn name<'a>(&self) -> &'a str {
         return "ggv_xml";
+    }
+    fn can_read(&self) -> bool {
+        true
+    }
+    fn can_write(&self) -> bool {
+        false
     }
     fn set_debug(&mut self, debug: u8) {
         set_debug(debug);

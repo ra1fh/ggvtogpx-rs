@@ -17,6 +17,7 @@
 /// along with this program; if not, write to the Free Software
 /// Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 ///
+use std::env;
 use std::error::Error;
 
 use anyhow::Result;
@@ -40,74 +41,9 @@ impl Format for GpxFormat {
         false
     }
     fn read(&self, _buf: &[u8]) -> Result<Geodata> {
-        todo!("gpx read not implemented");
+        todo!("gpx read support");
     }
-    fn name<'a>(&self) -> &'a str {
-        return "gpx";
-    }
-    fn set_debug(&mut self, debug: u8) {
-        self.debug = debug;
-    }
-}
-
-impl GpxFormat {
-    pub fn new() -> Self {
-        Self::default()
-    }
-    pub fn with_creator(mut self, creator: &str) -> Self {
-        self.creator = creator.to_owned();
-        self
-    }
-    pub fn with_testmode(mut self, testmode: bool) -> Self {
-        self.testmode = testmode;
-        self
-    }
-    pub fn write_waypoint(
-        writer: &mut Writer<&mut Vec<u8>>,
-        waypoint: &Waypoint,
-        element: &str,
-        cmt_desc: bool,
-    ) -> Result<(), Box<dyn Error>> {
-        if waypoint.name().is_empty() && waypoint.elevation().is_nan() {
-            writer
-                .create_element(element)
-                .with_attribute(("lat", format!("{:.9}", waypoint.latitude()).as_str()))
-                .with_attribute(("lon", format!("{:.9}", waypoint.longitude()).as_str()))
-                .write_empty()?;
-            Ok(())
-        } else {
-            writer
-                .create_element(element)
-                .with_attribute(("lat", format!("{:.9}", waypoint.latitude()).as_str()))
-                .with_attribute(("lon", format!("{:.9}", waypoint.longitude()).as_str()))
-                .write_inner_content(|writer| {
-                    if !waypoint.elevation().is_nan() {
-                        writer
-                            .create_element("ele")
-                            .write_text_content(BytesText::new(&format!(
-                                "{:.9}",
-                                waypoint.elevation()
-                            )))?;
-                    }
-                    if !waypoint.name().is_empty() {
-                        writer
-                            .create_element("name")
-                            .write_text_content(BytesText::new(&waypoint.name()))?;
-                        if cmt_desc {
-                            writer
-                                .create_element("cmt")
-                                .write_text_content(BytesText::new(&waypoint.name()))?;
-                            writer
-                                .create_element("desc")
-                                .write_text_content(BytesText::new(&waypoint.name()))?;
-                        }
-                    }
-                    Ok(())
-                })?;
-            Ok(())
-        }
-    }
-    pub fn write(&self, geodata: &Geodata) -> Result<String> {
+    fn write(&self, geodata: &Geodata) -> Result<String> {
         let mut buffer = Vec::new();
         let mut writer = Writer::new_with_indent(&mut buffer, b' ', 2);
         let epoch = DateTime::from_timestamp_secs(0).expect("invalid timestmap");
@@ -195,5 +131,82 @@ impl GpxFormat {
             })?;
         let output = std::str::from_utf8(&buffer)?;
         Ok(output.to_string() + "\n")
+    }
+    fn name<'a>(&self) -> &'a str {
+        return "gpx";
+    }
+    fn can_read(&self) -> bool {
+        false
+    }
+    fn can_write(&self) -> bool {
+        true
+    }
+    fn set_debug(&mut self, debug: u8) {
+        self.debug = debug;
+    }
+}
+
+impl GpxFormat {
+    pub fn new() -> Self {
+        Self::default()
+            .with_creator(&env::var("GGVTOGPX_CREATOR").unwrap_or("ggvtogpx".to_string()))
+            .with_testmode(if env::var("GGVTOGPX_TESTMODE").is_ok() {
+                true
+            } else {
+                false
+            })
+    }
+    pub fn with_creator(mut self, creator: &str) -> Self {
+        self.creator = creator.to_owned();
+        self
+    }
+    pub fn with_testmode(mut self, testmode: bool) -> Self {
+        self.testmode = testmode;
+        self
+    }
+    pub fn write_waypoint(
+        writer: &mut Writer<&mut Vec<u8>>,
+        waypoint: &Waypoint,
+        element: &str,
+        cmt_desc: bool,
+    ) -> Result<(), Box<dyn Error>> {
+        if waypoint.name().is_empty() && waypoint.elevation().is_nan() {
+            writer
+                .create_element(element)
+                .with_attribute(("lat", format!("{:.9}", waypoint.latitude()).as_str()))
+                .with_attribute(("lon", format!("{:.9}", waypoint.longitude()).as_str()))
+                .write_empty()?;
+            Ok(())
+        } else {
+            writer
+                .create_element(element)
+                .with_attribute(("lat", format!("{:.9}", waypoint.latitude()).as_str()))
+                .with_attribute(("lon", format!("{:.9}", waypoint.longitude()).as_str()))
+                .write_inner_content(|writer| {
+                    if !waypoint.elevation().is_nan() {
+                        writer
+                            .create_element("ele")
+                            .write_text_content(BytesText::new(&format!(
+                                "{:.9}",
+                                waypoint.elevation()
+                            )))?;
+                    }
+                    if !waypoint.name().is_empty() {
+                        writer
+                            .create_element("name")
+                            .write_text_content(BytesText::new(&waypoint.name()))?;
+                        if cmt_desc {
+                            writer
+                                .create_element("cmt")
+                                .write_text_content(BytesText::new(&waypoint.name()))?;
+                            writer
+                                .create_element("desc")
+                                .write_text_content(BytesText::new(&waypoint.name()))?;
+                        }
+                    }
+                    Ok(())
+                })?;
+            Ok(())
+        }
     }
 }

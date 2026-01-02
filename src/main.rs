@@ -17,7 +17,6 @@
 /// along with this program; if not, write to the Free Software
 /// Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 ///
-use std::env;
 use std::fs::File;
 use std::io;
 use std::io::Read;
@@ -76,8 +75,18 @@ fn main() -> Result<()> {
         Box::new(GgvBinFormat::new()),
         Box::new(GgvOvlFormat::new()),
         Box::new(GgvXmlFormat::new()),
+        Box::new(GpxFormat::new()),
     ];
-    let format_names: Vec<&str> = formats.iter().map(|f| f.name()).collect();
+    let read_format_names: Vec<&str> = formats
+        .iter()
+        .filter(|f| f.can_read())
+        .map(|f| f.name())
+        .collect();
+    let write_format_names: Vec<&str> = formats
+        .iter()
+        .filter(|f| f.can_write())
+        .map(|f| f.name())
+        .collect();
 
     let matches = Command::new("ggvtogpx")
         .version("1.0")
@@ -104,7 +113,7 @@ fn main() -> Result<()> {
             Arg::new("intype")
                 .value_name("type")
                 .short('i')
-                .value_parser(format_names)
+                .value_parser(read_format_names)
                 .help("input <type>"),
         )
         .arg(
@@ -114,10 +123,11 @@ fn main() -> Result<()> {
                 .help("input <file>"),
         )
         .arg(
-            Arg::new("otype")
+            Arg::new("outtype")
                 .value_name("type")
                 .short('o')
-                .help("output <type> (ignored)"),
+                .value_parser(write_format_names)
+                .help("output <type>"),
         )
         .arg(
             Arg::new("outfile")
@@ -150,26 +160,32 @@ fn main() -> Result<()> {
         None => &read_stdin()?,
     };
 
-    let Some(format) = (match matches.get_one::<String>("intype") {
+    let Some(informat) = (match matches.get_one::<String>("intype") {
         Some(intype) => formats.iter().find(|&f| f.name() == intype),
-        None => formats.iter().find(|&f| f.probe(indata)),
+        None => formats
+            .iter()
+            .filter(|f| f.can_read())
+            .find(|&f| f.probe(indata)),
     }) else {
         return Err(anyhow!("input format not given or detected."));
     };
     if debuglevel >= 1 {
-        eprintln!("main: using input format: {}", format.name());
+        eprintln!("main: using input format: {}", informat.name());
     }
 
-    let geodata = format.read(indata)?;
+    let geodata = informat.read(indata)?;
 
-    let result = GpxFormat::new()
-        .with_creator(&env::var("GGVTOGPX_CREATOR").unwrap_or("ggvtogpx".to_string()))
-        .with_testmode(if env::var("GGVTOGPX_TESTMODE").is_ok() {
-            true
-        } else {
-            false
-        })
-        .write(&geodata)?;
+    let Some(outformat) = (match matches.get_one::<String>("outtype") {
+        Some(outtype) => formats
+            .iter()
+            .filter(|&f| f.can_write())
+            .find(|&f| f.name() == outtype),
+        _ => formats.iter().find(|&f| f.name() == "gpx"),
+    }) else {
+        return Err(anyhow!("input format not given or detected."));
+    };
+
+    let result = outformat.write(&geodata)?;
 
     match matches
         .get_one::<String>("outfile")

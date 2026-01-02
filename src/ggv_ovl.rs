@@ -314,8 +314,18 @@ impl Format for GgvOvlFormat {
         };
         Ok(geodata)
     }
+    fn write(&self, geodata: &Geodata) -> Result<String> {
+        let mut result: Vec<String> = Vec::new();
+        Ok(result.join("\r\n") + "\r\n")
+    }
     fn name<'a>(&self) -> &'a str {
         return "ggv_ovl";
+    }
+    fn can_read(&self) -> bool {
+        true
+    }
+    fn can_write(&self) -> bool {
+        true
     }
     fn set_debug(&mut self, debug: u8) {
         set_debug(debug);
