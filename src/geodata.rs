@@ -137,8 +137,8 @@ impl Geodata {
         self
     }
     pub fn add_waypoint(&mut self, wp: Waypoint) {
-        if self.debug >= 3 {
-            eprintln!("geodata: add waypoint");
+        if self.debug >= 1 {
+            eprintln!("geodata: add waypt (len:   1, name: \"{}\")", wp.name());
         }
         if self.waypoints.len() == 0 {
             self.waypoints.push(WaypointList::default());
@@ -146,20 +146,28 @@ impl Geodata {
         self.waypoints[0].add_waypoint(wp);
     }
     pub fn add_route(&mut self, route: WaypointList) {
-        if self.debug >= 3 {
-            eprintln!("geodata: add route");
+        if self.debug >= 1 {
+            eprintln!(
+                "geodata: add route (len: {:3}, name: \"{}\")",
+                route.len(),
+                route.name()
+            );
         }
         self.routes.push(route);
     }
     pub fn add_track(&mut self, track: WaypointList) {
-        if self.debug >= 3 {
-            eprintln!("geodata: add track");
+        if self.debug >= 1 {
+            eprintln!(
+                "geodata: add track (len: {:3}, name: \"{}\")",
+                track.len(),
+                track.name()
+            );
         }
         self.tracks.push(track);
     }
     pub fn add_data(&mut self, kind: &str, data: Vec<u8>) {
-        if self.debug >= 3 {
-            eprintln!("geodata: add data ({})", kind);
+        if self.debug >= 1 {
+            eprintln!("geodata: add data  (len: {:3}, kind: {})", data.len(), kind);
         }
         self.data.push(Data {
             kind: kind.to_string(),
