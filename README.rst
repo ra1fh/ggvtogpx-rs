@@ -89,17 +89,17 @@ Usage
 
     Options:
       -D <debug>     debug <level> (0..5)
-      -i <type>      input <type> [possible values: ggv_bin, ggv_ovl, ggv_xml]
+      -i <type>      input <type> [possible values: ggv_bin, ggv_ovl, ggv_xml, gpx]
       -f <file>      input <file>
-      -o <type>      output <type> (ignored)
+      -o <type>      output <type> [possible values: ggv_ovl, gpx]
       -F <file>      output <file>
+      -d <path>      datafile <path>
       -h, --help     Print help
       -V, --version  Print version
 
 The input type will be automatically detected. There is typically no
-need to use the -i option to overwrite the detection. The output type
-option exists only for limited GPSBabel option compatibility. The
-output type is hard-coded to GPX. Example:
+need to use the -i option to overwrite the auto-detection. The
+output type default to GPX. Example:
 
 ::
 
@@ -364,3 +364,5 @@ added support for the OVL ASCII format (``ggv_ovl``) and developed the
 XML format support from scratch.
 
 In 2025, the ggvtogpx C++ codebase was ported to Rust.
+
+In 2026, GPX read support as well as ASCII OVL write support was added.
