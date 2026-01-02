@@ -158,8 +158,20 @@ fn gpx_process_xml<'a>(xml: &str) -> Result<Geodata> {
 //////////////////////////////////////////////////////////////////////
 
 impl Format for GpxFormat {
-    fn probe(&self, _buf: &[u8]) -> bool {
-        false
+    fn probe(&self, buf: &[u8]) -> bool {
+	let Ok(s) = std::str::from_utf8(buf) else {
+	    return false;
+	};
+	let Ok(doc) = roxmltree::Document::parse(s).with_context(|| "parse xml") else {
+	    return false;
+	};
+	let Ok(root) = doc.root().first_child().with_context(|| "root node") else {
+	    return false;
+	};
+	if ! root.has_tag_name("gpx") {
+	    return false;
+	}
+	return true
     }
     fn read(&self, buf: &[u8]) -> Result<Geodata> {
         let str = std::str::from_utf8(buf)?;

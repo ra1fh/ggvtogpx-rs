@@ -44,7 +44,7 @@ add_test(NAME build_ggvtogpx_for_tests
 foreach (test ${BinTestsToRun})
   add_test (NAME ${test}-generate COMMAND ${BIN_PATH} ${CMAKE_SOURCE_DIR}/testdata/${test}.ovl ${test}.out)
   add_test (NAME ${test}-diff COMMAND ${CMAKE_COMMAND} -E compare_files ${CMAKE_SOURCE_DIR}/testdata/${test}.gpx ${test}.out)
-  add_test (NAME ${test}-loopback-generate COMMAND ${BIN_PATH} -i gpx ${CMAKE_SOURCE_DIR}/testdata/${test}.gpx ${test}-loopback.out)
+  add_test (NAME ${test}-loopback-generate COMMAND ${BIN_PATH} ${CMAKE_SOURCE_DIR}/testdata/${test}.gpx ${test}-loopback.out)
   add_test (NAME ${test}-loopback-diff COMMAND ${CMAKE_COMMAND} -E compare_files ${CMAKE_SOURCE_DIR}/testdata/${test}.gpx ${test}-loopback.out)
   set_tests_properties(${test}-generate PROPERTIES ENVIRONMENT "GGVTOGPX_TESTMODE=1")
   set_tests_properties(${test}-loopback-generate PROPERTIES ENVIRONMENT "GGVTOGPX_TESTMODE=1")
