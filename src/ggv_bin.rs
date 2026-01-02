@@ -161,6 +161,45 @@ fn ggv_bin_read_double<'a>(
     Ok((i, val))
 }
 
+fn ggv_bin_write_bitmap<'a>(
+    bitmap: &'a [u8],
+    geodata: &mut Geodata,
+) -> nom::IResult<&'a [u8], (), CustomError> {
+    let (i, bmp_dib_size) = ggv_bin_read32(bitmap, "bmp dib size")?;
+    if bmp_dib_size != 40 {
+        return Ok((bitmap, ()));
+    }
+    let (i, _) = ggv_bin_read32(i, "bmp width")?;
+    let (i, _) = ggv_bin_read32(i, "bmp height")?;
+    let (i, _) = ggv_bin_read16(i, "bmp color plane")?;
+    let (i, bmp_pixel_bits) = ggv_bin_read16(i, "bmp pixel bits")?;
+    let (i, _) = ggv_bin_read32(i, "bmp compression")?;
+    let (i, _) = ggv_bin_read32(i, "bmp image size")?;
+    let (i, _) = ggv_bin_read32(i, "bmp x res")?;
+    let (i, _) = ggv_bin_read32(i, "bmp y res")?;
+    let (i, _) = ggv_bin_read32(i, "bmp num col")?;
+    let (_, _) = ggv_bin_read32(i, "bmp imp col")?;
+    let bmp_size: u32 = (bitmap.len() + 14) as u32;
+    let bmp_reserved1: u16 = 0x00;
+    let bmp_reserved2: u16 = 0x00;
+    let bmp_offset: u32;
+    // Files with 16bpp and above do not have a color table.
+    if bmp_pixel_bits >= 16 {
+        bmp_offset = 14 + bmp_dib_size;
+    } else {
+        bmp_offset = 14 + bmp_dib_size + 2u32.pow(bmp_pixel_bits.into()) * 4;
+    }
+    let mut data: Vec<u8> = Vec::new();
+    data.append(&mut ("BM".as_bytes()).to_vec());
+    data.append(&mut (bmp_size).to_le_bytes().to_vec());
+    data.append(&mut (bmp_reserved1).to_le_bytes().to_vec());
+    data.append(&mut (bmp_reserved2).to_le_bytes().to_vec());
+    data.append(&mut (bmp_offset).to_le_bytes().to_vec());
+    data.append(&mut bitmap.to_vec());
+    geodata.add_data("bmp", data);
+    Ok((bitmap, ()))
+}
+
 //////////////////////////////////////////////////////////////////////
 //            OVL Version 2.0
 //////////////////////////////////////////////////////////////////////
@@ -222,13 +261,29 @@ fn ggv_bin_read_v2_entries<'a>(
             (buf, _) = ggv_bin_read_double(buf, "geom lat")?;
         }
         9 => {
+            let bmp_len;
             (buf, _) = ggv_bin_read16(buf, "bmp color")?;
             (buf, _) = ggv_bin_read16(buf, "bmp prop1")?;
             (buf, _) = ggv_bin_read16(buf, "bmp prop2")?;
             (buf, _) = ggv_bin_read16(buf, "bmp prop3")?;
             (buf, _) = ggv_bin_read_double(buf, "bmp lon")?;
             (buf, _) = ggv_bin_read_double(buf, "bmp lat")?;
-            (buf, _) = ggv_bin_read_text32(buf, "bmp data")?;
+            (buf, bmp_len) = ggv_bin_read32(buf, "bmp len")?;
+            // The following check prevents passing an unsigned int with a value
+            // greater than INT32_MAX to a signed int parameter in
+            // ggv_bin_read_bytes later on. Choosing a much lower limit of
+            // UNIT16_MAX here since a larger value means the file is almost
+            // certainly corrupted and some Qt versions throw std::bad_alloc
+            // when getting close to INT32_MAX
+            if bmp_len > u16::MAX.into() {
+                eprintln!("bin: Read error, max bmp_len exceeded");
+                let err =
+                    nom::Err::Failure(nom::error::make_error(buf, nom::error::ErrorKind::TooLarge));
+                return Err(err);
+            }
+            let bmp_data;
+            (buf, bmp_data) = ggv_bin_read_bytes(buf, bmp_len, "bmp data")?;
+            let _ = ggv_bin_write_bitmap(bmp_data, geodata);
         }
         _ => {
             eprintln!("bin: Unsupported type: {:x}", entry_type);
@@ -465,8 +520,10 @@ fn ggv_bin_read_record_v34<'a>(
                     nom::Err::Failure(nom::error::make_error(buf, nom::error::ErrorKind::TooLarge));
                 return Err(err);
             }
+            let bmp_data;
             (buf, _) = ggv_bin_read16(buf, "bmp prop")?;
-            (buf, _) = ggv_bin_read_bytes(buf, bmp_len, "bmp data")?;
+            (buf, bmp_data) = ggv_bin_read_bytes(buf, bmp_len, "bmp data")?;
+            let _ = ggv_bin_write_bitmap(bmp_data, geodata);
         }
         _ => {
             eprintln!("bin: Unsupported type: {:x}", entry_type);
