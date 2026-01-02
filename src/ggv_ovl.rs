@@ -316,6 +316,112 @@ impl Format for GgvOvlFormat {
     }
     fn write(&self, geodata: &Geodata) -> Result<String> {
         let mut result: Vec<String> = Vec::new();
+        let mut symbol = 0;
+        for track in geodata.tracks().iter() {
+            symbol += 1;
+            result.push(format!("[Symbol {}]", symbol));
+            result.push(format!("Typ={}", SymbolType::Line as u8));
+            result.push("Group=1".into());
+            result.push("Col=3".into());
+            result.push("Zoom=1".into());
+            result.push("Size=105".into());
+            result.push("Art=1".into());
+            result.push(format!("Punkte={}", track.len()));
+            for (i, waypoint) in track.waypoints().iter().enumerate() {
+                result.push(format!("XKoord{}={:.8}", i, &waypoint.longitude()));
+                result.push(format!("YKoord{}={:.8}", i, &waypoint.latitude()));
+            }
+            if self.debug >= 1 {
+                eprintln!(
+                    "ovl: writing symbol {:2}: track, len: {:3}, name: \"{}\"",
+                    symbol,
+                    track.len(),
+                    track.name()
+                );
+            }
+        }
+        for route in geodata.routes().iter() {
+            symbol += 1;
+            result.push(format!("[Symbol {}]", symbol));
+            result.push(format!("Typ={}", SymbolType::Line as u8));
+            result.push("Group=1".into());
+            result.push("Col=3".into());
+            result.push("Zoom=1".into());
+            result.push("Size=100".into());
+            result.push("Art=1".into());
+            result.push(format!("Punkte={}", route.len()));
+            for (i, waypoint) in route.waypoints().iter().enumerate() {
+                result.push(format!("XKoord{}={:.8}", i, &waypoint.longitude()));
+                result.push(format!("YKoord{}={:.8}", i, &waypoint.latitude()));
+            }
+            if self.debug >= 1 {
+                eprintln!(
+                    "ovl: writing symbol {:2}: route, len: {:3}, name: \"{}\")",
+                    symbol,
+                    route.len(),
+                    route.name()
+                );
+            }
+        }
+        for waypoint in geodata.waypoints().waypoints().iter() {
+            // For waypoints with text, generate a circle and a text
+            // object to have some visual indication where the point
+            // is located. For waypoints without text, only generate
+            // a circle.
+            symbol += 1;
+            result.push(format!("[Symbol {}]", symbol));
+            result.push(format!("Typ={}", SymbolType::Circle as u8));
+            result.push("Group=1".into());
+            result.push("Width=20".into());
+            result.push("Height=20".into());
+            result.push("Dir=100".into());
+            result.push("Col=3".into());
+            result.push("Zoom=1".into());
+            result.push("Size=102".into());
+            result.push("Area=1".into());
+            result.push(format!("XKoord={:.8}", &waypoint.longitude()));
+            result.push(format!("YKoord={:.8}", &waypoint.latitude()));
+            if self.debug >= 1 {
+                eprintln!(
+                    "ovl: writing symbol {:2}: waypt, len:   1, name: \"{}\", type: {}",
+                    symbol,
+                    waypoint.name(),
+                    SymbolType::Circle
+                );
+            }
+            if !waypoint.name().is_empty() {
+                symbol += 1;
+                result.push(format!("[Symbol {}]", symbol));
+                result.push(format!("Typ={}", SymbolType::Text as u8));
+                result.push("Group=1".into());
+                result.push("Col=3".into());
+                result.push("Area=1".into());
+                result.push("Zoom=1".into());
+                result.push("Size=120".into());
+                result.push("Font=1".into());
+                result.push("Dir=100".into());
+                result.push(format!("Text={}", waypoint.name()));
+                result.push(format!("XKoord={:.8}", &waypoint.longitude()));
+                result.push(format!("YKoord={:.8}", &waypoint.latitude()));
+                if self.debug >= 1 {
+                    eprintln!(
+                        "ovl: writing symbol {:2}: waypt, len:   1, name: \"{}\", type: {}",
+                        symbol,
+                        waypoint.name(),
+                        SymbolType::Text
+                    );
+                }
+            }
+        }
+        result.push("[Overlay]".into());
+        result.push(format!("Symbols={}", symbol));
+        result.push("[MapLage]".into());
+        result.push("MapName=Karte".into());
+        result.push("DimmFc=100".into());
+        result.push("ZoomFc=100".into());
+        result.push("CenterLat=".into());
+        result.push("CenterLong=".into());
+        result.push("RefOn=0".into());
         Ok(result.join("\r\n") + "\r\n")
     }
     fn name<'a>(&self) -> &'a str {
