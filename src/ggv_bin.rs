@@ -191,7 +191,6 @@ fn ggv_bin_read_v2_entries<'a>(
                     .with_lon(lon)
                     .with_name(&label),
             );
-            Ok((buf, ()))
         }
         3 | 4 => {
             let mut waypoint_list = WaypointList::new();
@@ -211,7 +210,6 @@ fn ggv_bin_read_v2_entries<'a>(
                 waypoint_list.add_waypoint(Waypoint::new().with_lat(lat).with_lon(lon));
             }
             geodata.add_track(waypoint_list);
-            Ok((buf, ()))
         }
         5 | 6 | 7 => {
             (buf, _) = ggv_bin_read16(buf, "geom color")?;
@@ -222,7 +220,6 @@ fn ggv_bin_read_v2_entries<'a>(
             (buf, _) = ggv_bin_read16(buf, "geom area")?;
             (buf, _) = ggv_bin_read_double(buf, "geom lon")?;
             (buf, _) = ggv_bin_read_double(buf, "geom lat")?;
-            Ok((buf, ()))
         }
         9 => {
             (buf, _) = ggv_bin_read16(buf, "bmp color")?;
@@ -232,17 +229,14 @@ fn ggv_bin_read_v2_entries<'a>(
             (buf, _) = ggv_bin_read_double(buf, "bmp lon")?;
             (buf, _) = ggv_bin_read_double(buf, "bmp lat")?;
             (buf, _) = ggv_bin_read_text32(buf, "bmp data")?;
-
-            Ok((buf, ()))
         }
         _ => {
-            return Ok((buf, ()));
-            //let err = nom::Err::Failure(
-            //    nom::error::make_error(
-            //	buf, nom::error::ErrorKind::Tag));
-            //return Err(err)
+            eprintln!("bin: Unsupported type: {:x}", entry_type);
+            let err = nom::Err::Failure(nom::error::make_error(buf, nom::error::ErrorKind::Tag));
+            return Err(err);
         }
     }
+    Ok((buf, ()))
 }
 
 fn ggv_bin_read_header_v2(buf: &[u8]) -> nom::IResult<&[u8], String, CustomError> {
