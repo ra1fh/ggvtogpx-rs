@@ -125,6 +125,12 @@ fn main() -> Result<()> {
                 .short('F')
                 .help("output <file>"),
         )
+        .arg(
+            Arg::new("datafile")
+                .value_name("path")
+                .short('d')
+                .help("datafile <path>"),
+        )
         .get_matches();
 
     let debuglevel = *matches.get_one::<u8>("debug").unwrap_or(&0);
@@ -165,20 +171,52 @@ fn main() -> Result<()> {
         })
         .write(&geodata)?;
 
-    let Some(outfile) = matches
+    match matches
         .get_one::<String>("outfile")
         .or(matches.get_one::<String>("outfile_p"))
-    else {
-        // Don't produce output without outfile option. Matches
-        // gpsbabel behaviour and is useful for testing the input
-        // code only.
-        return Ok(());
-    };
+    {
+        Some(outfile) => {
+            if outfile == "-" {
+                write_stdout(&result)?;
+                if debuglevel >= 1 {
+                    eprintln!("main: writing gpx to: stdout");
+                }
+            } else {
+                write_file(&result, outfile)?;
+                if debuglevel >= 1 {
+                    eprintln!("main: writing gpx to: {}", outfile);
+                }
+            }
+        }
+        _ => {
+            // Don't produce output without outfile option. Matches
+            // gpsbabel behaviour and is useful for testing the input
+            // code only.
+            if debuglevel >= 1 {
+                eprintln!("main: omitting output");
+            }
+            ()
+        }
+    }
 
-    if outfile == "-" {
-        write_stdout(&result)?;
-    } else {
-        write_file(&result, outfile)?;
+    match matches.get_one::<String>("datafile") {
+        Some(datafile) => {
+            for (pos, ele) in geodata.data().iter().enumerate() {
+                let filename = format!("{}-{:03}.{}", datafile, pos + 1, ele.kind());
+                match std::fs::File::create(&filename) {
+                    Ok(mut out) => {
+                        let _ = out.write_all(ele.data());
+                        if debuglevel >= 1 {
+                            eprintln!("main: writing data to: \"{}\"", filename);
+                        }
+                    }
+                    _ => {
+                        eprintln!("error: writing data to: \"{}\"", filename);
+                    }
+                }
+            }
+        }
+        _ => (),
     }
     Ok(())
 }
