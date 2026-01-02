@@ -44,7 +44,10 @@ add_test(NAME build_ggvtogpx_for_tests
 foreach (test ${BinTestsToRun})
   add_test (NAME ${test}-generate COMMAND ${BIN_PATH} ${CMAKE_SOURCE_DIR}/testdata/${test}.ovl ${test}.out)
   add_test (NAME ${test}-diff COMMAND ${CMAKE_COMMAND} -E compare_files ${CMAKE_SOURCE_DIR}/testdata/${test}.gpx ${test}.out)
+  add_test (NAME ${test}-loopback-generate COMMAND ${BIN_PATH} -i gpx ${CMAKE_SOURCE_DIR}/testdata/${test}.gpx ${test}-loopback.out)
+  add_test (NAME ${test}-loopback-diff COMMAND ${CMAKE_COMMAND} -E compare_files ${CMAKE_SOURCE_DIR}/testdata/${test}.gpx ${test}-loopback.out)
   set_tests_properties(${test}-generate PROPERTIES ENVIRONMENT "GGVTOGPX_TESTMODE=1")
+  set_tests_properties(${test}-loopback-generate PROPERTIES ENVIRONMENT "GGVTOGPX_TESTMODE=1")
   set_tests_properties(build_ggvtogpx_for_tests PROPERTIES FIXTURES_SETUP rust_build_fixture)
 set_tests_properties(${test}-generate PROPERTIES FIXTURES_REQUIRED rust_build_fixture)
 endforeach ()
@@ -53,4 +56,6 @@ add_custom_target(diff)
 foreach(test ${BinTestsToRun})
 add_custom_command(TARGET diff POST_BUILD
   COMMAND diff -u ${CMAKE_SOURCE_DIR}/testdata/${test}.gpx ${test}.out)
+add_custom_command(TARGET diff POST_BUILD
+  COMMAND diff -u ${CMAKE_SOURCE_DIR}/testdata/${test}.gpx ${test}-loopback.out)
 endforeach()

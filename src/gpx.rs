@@ -19,8 +19,10 @@
 ///
 use std::env;
 use std::error::Error;
+use std::sync::atomic::AtomicU8;
+use std::sync::atomic::Ordering;
 
-use anyhow::Result;
+use anyhow::{anyhow, Context, Result};
 use chrono::{DateTime, Utc};
 use quick_xml::events::{BytesDecl, BytesText, Event};
 use quick_xml::writer::Writer;
@@ -28,6 +30,17 @@ use quick_xml::writer::Writer;
 use crate::format::Format;
 use crate::geodata::Geodata;
 use crate::geodata::Waypoint;
+use crate::geodata::WaypointList;
+
+static DEBUG_LEVEL: AtomicU8 = AtomicU8::new(0);
+
+fn get_debug() -> u8 {
+    DEBUG_LEVEL.load(Ordering::Relaxed)
+}
+
+fn set_debug(debug: u8) {
+    DEBUG_LEVEL.store(debug, Ordering::Relaxed);
+}
 
 #[derive(Debug, Default)]
 pub struct GpxFormat {
@@ -36,12 +49,121 @@ pub struct GpxFormat {
     debug: u8,
 }
 
+fn gpx_read_text(node: roxmltree::Node, tag: &str) -> Option<String> {
+    let Some(n) = node.children().find(|c| c.has_tag_name(tag)) else {
+        return None;
+    };
+    let Some(t) = n.text() else {
+        return None;
+    };
+    Some(String::from(t))
+}
+
+fn gpx_read_waypoint(node: roxmltree::Node) -> Option<Waypoint> {
+    let lat = node.attribute("lat")?;
+    let lat = lat.parse::<f64>().ok()?;
+    let lon = node.attribute("lon")?;
+    let lon = lon.parse::<f64>().ok()?;
+    let ele = gpx_read_text(node, "ele").and_then(|v| v.parse::<f64>().ok());
+    match ele {
+        Some(ele) => Some(
+            Waypoint::new()
+                .with_lat(lat)
+                .with_lon(lon)
+                .with_elevation(ele),
+        ),
+        _ => Some(Waypoint::new().with_lat(lat).with_lon(lon)),
+    }
+}
+
+fn gpx_read_trk(trk: roxmltree::Node, geodata: &mut Geodata) {
+    let name = gpx_read_text(trk, "name").unwrap_or(String::from(""));
+    let mut list = WaypointList::new();
+    list.set_name(&name);
+    for trkseg in trk.children().filter(|c| c.has_tag_name("trkseg")) {
+        for trkpt in trkseg.children().filter(|c| c.has_tag_name("trkpt")) {
+            let Some(waypoint) = gpx_read_waypoint(trkpt) else {
+                continue;
+            };
+            list.add_waypoint(waypoint);
+        }
+    }
+    geodata.add_track(list);
+}
+
+fn gpx_read_rte(rte: roxmltree::Node, geodata: &mut Geodata) {
+    let name = gpx_read_text(rte, "name").unwrap_or(String::from(""));
+    let mut list = WaypointList::new();
+    list.set_name(&name);
+    for rtept in rte.children().filter(|c| c.has_tag_name("rtept")) {
+        let Some(mut waypoint) = gpx_read_waypoint(rtept) else {
+            continue;
+        };
+        let name = gpx_read_text(rtept, "name").unwrap_or(String::from(""));
+        if !name.is_empty() {
+            waypoint.set_name(&name);
+        }
+        list.add_waypoint(waypoint);
+    }
+    geodata.add_route(list);
+}
+
+fn gpx_read_wpt(wpt: roxmltree::Node, geodata: &mut Geodata) {
+    let Some(mut waypoint) = gpx_read_waypoint(wpt) else {
+        return;
+    };
+    let name = gpx_read_text(wpt, "name").unwrap_or(String::from(""));
+    if !name.is_empty() {
+        waypoint.set_name(&name);
+        geodata.add_waypoint(waypoint);
+        return;
+    }
+    let cmt = gpx_read_text(wpt, "cmt").unwrap_or(String::from(""));
+    if !cmt.is_empty() {
+        waypoint.set_name(&cmt);
+        geodata.add_waypoint(waypoint);
+        return;
+    }
+    let desc = gpx_read_text(wpt, "desc").unwrap_or(String::from(""));
+    if !desc.is_empty() {
+        waypoint.set_name(&desc);
+        geodata.add_waypoint(waypoint);
+        return;
+    }
+    geodata.add_waypoint(waypoint);
+}
+
+/// Parse gpx xml
+fn gpx_process_xml<'a>(xml: &str) -> Result<Geodata> {
+    let mut geodata = Geodata::new().with_debug(get_debug());
+    let doc = roxmltree::Document::parse(xml).with_context(|| "parse xml")?;
+    let root = doc.root().first_child().with_context(|| "root node")?;
+    root.has_tag_name("gpx")
+        .then_some(())
+        .ok_or_else(|| anyhow!("gpx tag"))?;
+    for trk in root.children().filter(|c| c.has_tag_name("trk")) {
+        gpx_read_trk(trk, &mut geodata);
+    }
+    for rte in root.children().filter(|c| c.has_tag_name("rte")) {
+        gpx_read_rte(rte, &mut geodata);
+    }
+    for wpt in root.children().filter(|c| c.has_tag_name("wpt")) {
+        gpx_read_wpt(wpt, &mut geodata);
+    }
+    Ok(geodata)
+}
+
+//////////////////////////////////////////////////////////////////////
+//            entry points called by ggvtogpx main process
+//////////////////////////////////////////////////////////////////////
+
 impl Format for GpxFormat {
     fn probe(&self, _buf: &[u8]) -> bool {
         false
     }
-    fn read(&self, _buf: &[u8]) -> Result<Geodata> {
-        todo!("gpx read support");
+    fn read(&self, buf: &[u8]) -> Result<Geodata> {
+        let str = std::str::from_utf8(buf)?;
+        gpx_process_xml(str)
     }
     fn write(&self, geodata: &Geodata) -> Result<String> {
         let mut buffer = Vec::new();
@@ -136,15 +258,20 @@ impl Format for GpxFormat {
         return "gpx";
     }
     fn can_read(&self) -> bool {
-        false
+        true
     }
     fn can_write(&self) -> bool {
         true
     }
     fn set_debug(&mut self, debug: u8) {
         self.debug = debug;
+        set_debug(debug);
     }
 }
+
+//////////////////////////////////////////////////////////////////////
+//            Additional GPX specific member functions
+//////////////////////////////////////////////////////////////////////
 
 impl GpxFormat {
     pub fn new() -> Self {
