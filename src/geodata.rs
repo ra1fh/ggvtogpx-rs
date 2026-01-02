@@ -99,11 +99,27 @@ impl WaypointList {
 }
 
 #[derive(Debug)]
+pub struct Data {
+    kind: String,
+    data: Vec<u8>,
+}
+
+impl Data {
+    pub fn kind(&self) -> &String {
+        &self.kind
+    }
+    pub fn data(&self) -> &Vec<u8> {
+        &self.data
+    }
+}
+
+#[derive(Debug)]
 pub struct Geodata {
     debug: u8,
     waypoints: Vec<WaypointList>,
     routes: Vec<WaypointList>,
     tracks: Vec<WaypointList>,
+    data: Vec<Data>,
 }
 
 impl Geodata {
@@ -113,6 +129,7 @@ impl Geodata {
             waypoints: vec![WaypointList::default()],
             routes: Vec::new(),
             tracks: Vec::new(),
+            data: Vec::new(),
         }
     }
     pub fn with_debug(mut self, value: u8) -> Self {
@@ -140,6 +157,15 @@ impl Geodata {
         }
         self.tracks.push(track);
     }
+    pub fn add_data(&mut self, kind: &str, data: Vec<u8>) {
+        if self.debug >= 3 {
+            eprintln!("geodata: add data ({})", kind);
+        }
+        self.data.push(Data {
+            kind: kind.to_string(),
+            data: data,
+        });
+    }
     pub fn waypoints(&self) -> &WaypointList {
         &self.waypoints[0]
     }
@@ -158,6 +184,9 @@ impl Geodata {
     }
     pub fn tracks(&self) -> &Vec<WaypointList> {
         &self.tracks
+    }
+    pub fn data(&self) -> &Vec<Data> {
+        &self.data
     }
     pub fn get_bounds(&self) -> Option<(Waypoint, Waypoint)> {
         let min_lat = 0.0;
